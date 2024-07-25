@@ -1,5 +1,3 @@
-#![allow(clippy::result_large_err)]
-
 use anchor_lang::prelude::*;
 
 declare_id!("DDJ6SXRJSnWamYPFuHaMaUDhUEfN5D2ztiFCxLKcbb9k");
@@ -8,63 +6,96 @@ declare_id!("DDJ6SXRJSnWamYPFuHaMaUDhUEfN5D2ztiFCxLKcbb9k");
 pub mod reddit {
     use super::*;
 
-  pub fn close(_ctx: Context<CloseReddit>) -> Result<()> {
+  pub fn create_reddit_post(
+    ctx: Context<CreatePost>, 
+    topic: String, 
+    content: String,
+  ) -> Result<()> {  
+    let reddit_post = &mut ctx.accounts.reddit_post;
+    let clock: Clock = Clock::get().unwrap();
+    reddit_post.author = ctx.accounts.author.key();
+    reddit_post.topic = topic;
+    reddit_post.content = content;
+    reddit_post.timestamp = clock.unix_timestamp;
+
+    Ok(())
+  }  
+
+  pub fn update_reddit_post(
+    ctx: Context<UpdatePost>,
+    _topic: String,
+    new_content: String,
+  ) -> Result<()> {  
+    
+
+    let reddit_post = &mut ctx.accounts.reddit_post;
+    reddit_post.content = new_content;
     Ok(())
   }
 
-  pub fn decrement(ctx: Context<Update>) -> Result<()> {
-    ctx.accounts.reddit.count = ctx.accounts.reddit.count.checked_sub(1).unwrap();
-    Ok(())
-  }
+  pub fn delete_reddit_post(
+    _ctx: Context<DeletePost>,
+    _title: String,
+  ) -> Result<()> {
+      Ok(())
+  } 
+  
+}  
 
-  pub fn increment(ctx: Context<Update>) -> Result<()> {
-    ctx.accounts.reddit.count = ctx.accounts.reddit.count.checked_add(1).unwrap();
-    Ok(())
-  }
-
-  pub fn initialize(_ctx: Context<InitializeReddit>) -> Result<()> {
-    Ok(())
-  }
-
-  pub fn set(ctx: Context<Update>, value: u8) -> Result<()> {
-    ctx.accounts.reddit.count = value.clone();
-    Ok(())
-  }
+// 1. Define the structure of the Reddit account.
+#[account]
+pub struct RedditPostState {
+    pub author: Pubkey,
+    pub topic: String,
+    pub content: String,
+    pub timestamp: i64,
 }
 
 #[derive(Accounts)]
-pub struct InitializeReddit<'info> {
-  #[account(mut)]
-  pub payer: Signer<'info>,
-
+#[instruction(topic:String, content:String)]
+pub struct CreatePost<'info> {
   #[account(
-  init,
-  space = 8 + Reddit::INIT_SPACE,
-  payer = payer
+    init, 
+    seeds = [topic.as_bytes(), author.key().as_ref()],
+    bump,
+    payer = author, 
+    space = 8 + 32 + 8+ 4 + topic.len() + 4 + content.len(),
   )]
-  pub reddit: Account<'info, Reddit>,
+  pub reddit_post: Account<'info, RedditPostState>,
+  #[account(mut)]
+  pub author: Signer<'info>,
   pub system_program: Program<'info, System>,
 }
-#[derive(Accounts)]
-pub struct CloseReddit<'info> {
-  #[account(mut)]
-  pub payer: Signer<'info>,
 
+#[derive(Accounts)]
+#[instruction(topic:String, content:String)]
+pub struct UpdatePost<'info> {
   #[account(
-  mut,
-  close = payer, // close account and return lamports to payer
+    mut, 
+    seeds = [topic.as_bytes(), author.key().as_ref()],
+    bump,
+    realloc = 8 + 32 + 8 + 4 + topic.len() + 4 + content.len(),
+    realloc::payer = author, 
+    realloc::zero = true,
   )]
-  pub reddit: Account<'info, Reddit>,
+  pub reddit_post: Account<'info, RedditPostState>,
+  #[account(mut)]
+  pub author: Signer<'info>,
+  pub system_program: Program<'info, System>,
 }
 
 #[derive(Accounts)]
-pub struct Update<'info> {
+#[instruction(topic:String)]
+pub struct DeletePost<'info> {
+  #[account(
+    mut, 
+    seeds = [topic.as_bytes(), author.key().as_ref()],
+    bump,
+    close = author, 
+  )]
+  pub reddit_post: Account<'info, RedditPostState>,
   #[account(mut)]
-  pub reddit: Account<'info, Reddit>,
+  pub author: Signer<'info>,
+  pub system_program: Program<'info, System>,
 }
 
-#[account]
-#[derive(InitSpace)]
-pub struct Reddit {
-  count: u8,
-}

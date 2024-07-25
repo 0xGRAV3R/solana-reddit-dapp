@@ -3,13 +3,21 @@
 import { getRedditProgram, getRedditProgramId } from '@reddit/anchor';
 import { Program } from '@coral-xyz/anchor';
 import { useConnection } from '@solana/wallet-adapter-react';
-import { Cluster, Keypair, PublicKey } from '@solana/web3.js';
+import { Cluster, PublicKey } from '@solana/web3.js';
 import { useMutation, useQuery } from '@tanstack/react-query';
 import { useMemo } from 'react';
 import toast from 'react-hot-toast';
 import { useCluster } from '../cluster/cluster-data-access';
 import { useAnchorProvider } from '../solana/solana-provider';
 import { useTransactionToast } from '../ui/ui-layout';
+
+interface CreateEntryArgs {
+  author: PublicKey,
+  topic: string,
+  content: string,
+  timestam: number,
+};
+
 
 export function useRedditProgram() {
   const { connection } = useConnection();
@@ -22,9 +30,10 @@ export function useRedditProgram() {
   );
   const program = getRedditProgram(provider);
 
+  /* Query from state */
   const accounts = useQuery({
     queryKey: ['reddit', 'all', { cluster }],
-    queryFn: () => program.account.reddit.all(),
+    queryFn: () => program.account.redditPostState.all(),
   });
 
   const getProgramAccount = useQuery({
@@ -32,19 +41,29 @@ export function useRedditProgram() {
     queryFn: () => connection.getParsedAccountInfo(programId),
   });
 
-  const initialize = useMutation({
-    mutationKey: ['reddit', 'initialize', { cluster }],
-    mutationFn: (keypair: Keypair) =>
-      program.methods
-        .initialize()
-        .accounts({ reddit: keypair.publicKey })
-        .signers([keypair])
-        .rpc(),
-    onSuccess: (signature) => {
+  /* Create entry */
+  const createPost = useMutation<string, Error, CreateEntryArgs>({
+    mutationKey: ['redditPost', 'create', { cluster }],
+    mutationFn: async ({ topic, content, author}) => {
+      const [redditPostAddress] = await PublicKey.findProgramAddress(
+        [Buffer.from(topic), author.toBuffer()],
+        programId,
+      );
+
+      return program.methods
+      .createRedditPost(topic, content)
+      .accounts({
+        redditPost: redditPostAddress,
+      })
+      .rpc();
+    },
+    onSuccess: signature => {
       transactionToast(signature);
       return accounts.refetch();
     },
-    onError: () => toast.error('Failed to initialize account'),
+    onError: (error) => {
+      toast.error(`Failed to create relay entry: ${error.message}`);
+    },    
   });
 
   return {
@@ -52,65 +71,67 @@ export function useRedditProgram() {
     programId,
     accounts,
     getProgramAccount,
-    initialize,
+    createPost,
   };
 }
 
 export function useRedditProgramAccount({ account }: { account: PublicKey }) {
   const { cluster } = useCluster();
   const transactionToast = useTransactionToast();
-  const { program, accounts } = useRedditProgram();
+  const { programId, program, accounts } = useRedditProgram();
 
   const accountQuery = useQuery({
     queryKey: ['reddit', 'fetch', { cluster, account }],
-    queryFn: () => program.account.reddit.fetch(account),
+    queryFn: () => program.account.redditPostState.fetch(account),
   });
 
-  const closeMutation = useMutation({
-    mutationKey: ['reddit', 'close', { cluster, account }],
-    mutationFn: () =>
-      program.methods.close().accounts({ reddit: account }).rpc(),
+  /* Update entry */
+  const updatePost = useMutation<string, Error, CreateEntryArgs>({
+    mutationKey: ['redditPost', 'update', { cluster }],
+    mutationFn: async ({topic, content, author}) => {
+      const [redditPostAddress] = await PublicKey.findProgramAddress(
+        [Buffer.from(topic), author.toBuffer()],
+        programId,
+      );
+
+      return program.methods
+      .updateRedditPost(topic, content)
+      .accounts({
+        redditPost: redditPostAddress
+      })
+      .rpc();
+    },  
+
+    onSuccess: signature => {
+      transactionToast(signature);
+      return accounts.refetch();
+    },
+    onError: (error) => {
+      toast.error(`Failed to create relay entry: ${error.message}`);
+    },  
+  });
+
+  const deletePost = useMutation({
+    mutationKey: ['redditPost', 'close', { cluster, account }],
+    mutationFn: (topic: string) =>
+      program.methods
+      .deleteRedditPost(topic)
+      .accounts({ 
+        redditPost: account 
+      })
+      .rpc(),
+      
     onSuccess: (tx) => {
       transactionToast(tx);
       return accounts.refetch();
     },
   });
 
-  const decrementMutation = useMutation({
-    mutationKey: ['reddit', 'decrement', { cluster, account }],
-    mutationFn: () =>
-      program.methods.decrement().accounts({ reddit: account }).rpc(),
-    onSuccess: (tx) => {
-      transactionToast(tx);
-      return accountQuery.refetch();
-    },
-  });
-
-  const incrementMutation = useMutation({
-    mutationKey: ['reddit', 'increment', { cluster, account }],
-    mutationFn: () =>
-      program.methods.increment().accounts({ reddit: account }).rpc(),
-    onSuccess: (tx) => {
-      transactionToast(tx);
-      return accountQuery.refetch();
-    },
-  });
-
-  const setMutation = useMutation({
-    mutationKey: ['reddit', 'set', { cluster, account }],
-    mutationFn: (value: number) =>
-      program.methods.set(value).accounts({ reddit: account }).rpc(),
-    onSuccess: (tx) => {
-      transactionToast(tx);
-      return accountQuery.refetch();
-    },
-  });
+  
 
   return {
     accountQuery,
-    closeMutation,
-    decrementMutation,
-    incrementMutation,
-    setMutation,
+    updatePost,
+    deletePost,
   };
 }

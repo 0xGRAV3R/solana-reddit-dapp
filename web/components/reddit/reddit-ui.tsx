@@ -1,27 +1,63 @@
 'use client';
 
-import { Keypair, PublicKey } from '@solana/web3.js';
-import { useMemo } from 'react';
+import { PublicKey } from '@solana/web3.js';
+import { useState } from 'react';
 import { ellipsify } from '../ui/ui-layout';
 import { ExplorerLink } from '../cluster/cluster-ui';
 import {
   useRedditProgram,
   useRedditProgramAccount,
 } from './reddit-data-access';
+import { useWallet } from '@solana/wallet-adapter-react';
+import { isDate } from 'util/types';
+import { timeStamp } from 'console';
 
 export function RedditCreate() {
-  const { initialize } = useRedditProgram();
+  const { createPost } = useRedditProgram();
+  const { publicKey } = useWallet();
+  const [topic, setTopic] = useState("");
+  const [content, setContent] = useState("");
+
+  const isFormValid = topic.trim() !== '' && content.trim() !== '';
+
+  const handleSubmit = () => {
+    if (publicKey && isFormValid) {
+      createPost.mutateAsync({ topic, content, author: publicKey });
+    }
+  };
+
+  if (!publicKey){
+    return <p>Connect your wallet</p>
+  }
 
   return (
-    <button
-      className="btn btn-xs lg:btn-md btn-primary"
-      onClick={() => initialize.mutateAsync(Keypair.generate())}
-      disabled={initialize.isPending}
-    >
-      Create {initialize.isPending && '...'}
-    </button>
+    <div>
+      <input
+        type="text"
+        placeholder="Topic"
+        value={topic}
+        onChange={(e) => setTopic(e.target.value)}
+        className="input input-bordered w-full max-w-xs"
+      />
+      <br></br>
+      <textarea
+        placeholder="Content"
+        value={content}
+        onChange={(e) => setContent(e.target.value)}
+        className="textarea textarea-bordered w-full max-w-xs"
+      />
+      <br></br>
+      <button
+        className="btn btn-xs lg:btn-md btn-primary"
+        onClick={handleSubmit}
+        disabled={createPost.isPending || !isFormValid}
+      >
+        Create Reddit Post {createPost.isPending && '...'}
+      </button>
+    </div>
   );
 }
+
 
 export function RedditList() {
   const { accounts, getProgramAccount } = useRedditProgram();
@@ -31,7 +67,7 @@ export function RedditList() {
   }
   if (!getProgramAccount.data?.value) {
     return (
-      <div className="alert alert-info flex justify-center">
+      <div className="flex justify-left alert alert-info">
         <span>
           Program account not found. Make sure you have deployed the program and
           are on the correct cluster.
@@ -44,7 +80,7 @@ export function RedditList() {
       {accounts.isLoading ? (
         <span className="loading loading-spinner loading-lg"></span>
       ) : accounts.data?.length ? (
-        <div className="grid md:grid-cols-2 gap-4">
+        <div className="grid gap-4 md:grid-cols-1">
           {accounts.data?.map((account) => (
             <RedditCard
               key={account.publicKey.toString()}
@@ -53,7 +89,7 @@ export function RedditList() {
           ))}
         </div>
       ) : (
-        <div className="text-center">
+        <div className="text-left">
           <h2 className={'text-2xl'}>No accounts</h2>
           No accounts found. Create one above to get started.
         </div>
@@ -65,71 +101,84 @@ export function RedditList() {
 function RedditCard({ account }: { account: PublicKey }) {
   const {
     accountQuery,
-    incrementMutation,
-    setMutation,
-    decrementMutation,
-    closeMutation,
+    updatePost, 
+    deletePost
   } = useRedditProgramAccount({ account });
+  const { publicKey } = useWallet();
+  const [content, setContent] = useState('');
+  const topic = accountQuery.data?.topic; 
 
-  const count = useMemo(
-    () => accountQuery.data?.count ?? 0,
-    [accountQuery.data?.count]
-  );
+  const isFormValid = content.trim() !== '';
+
+  const handleSubmit = () => {
+    if (publicKey && isFormValid && topic) {
+      updatePost.mutateAsync({ topic, content, author: publicKey });
+    }
+  };
+
+
+
+
+
+  if (!publicKey){
+    return <p>Connect your wallet</p>
+  }
 
   return accountQuery.isLoading ? (
     <span className="loading loading-spinner loading-lg"></span>
   ) : (
-    <div className="card card-bordered border-base-300 border-4 text-neutral-content">
-      <div className="card-body items-center text-center">
-        <div className="space-y-6">
+    <div className="card card-bordered border-base-300 border-4">
+      <div className="card-body items-left text-left">
+        {/* <div className="space-y-2"> */}
+        <div className="">
+        <div className="flex items-center space-x-2">
+            <img className="h-4 md:h-4" alt="solana" src="https://styles.redditmedia.com/t5_hcs2n/styles/communityIcon_j73u48561y681.png" />
+            <span>
+            <ExplorerLink
+                path={`account/${accountQuery.data?.author.toString()}`}
+                label={ellipsify(accountQuery.data?.author.toString())}
+              />
+            </span>
+            <sub> 
+            {Date(accountQuery.data?.timestamp.toString())} 
+            </sub>
+          </div>
+          
+          
+          {/* {ellipsify(accountQuery.data?.author.toString())} */}
+          {/* {(accountQuery.data?.author.toString())} */}
+          
           <h2
-            className="card-title justify-center text-3xl cursor-pointer"
+            className="card-title justify-left text-xl cursor-pointer"
             onClick={() => accountQuery.refetch()}
           >
-            {count}
+            {accountQuery.data?.topic}
           </h2>
-          <div className="card-actions justify-around">
+          <p style={{ fontSize: 'small', fontWeight: 100 }}>
+          {accountQuery.data?.content}
+          </p>  
+          <div className="card-actions justify-left">
+            <textarea
+              placeholder="Update content here"
+              value={content}
+              onChange={(e) => setContent(e.target.value)}
+              className="textarea textarea-bordered w-full max-w-xs"
+            />
             <button
-              className="btn btn-xs lg:btn-md btn-outline"
-              onClick={() => incrementMutation.mutateAsync()}
-              disabled={incrementMutation.isPending}
+              className="btn btn-xs lg:btn-md btn-primary"
+              onClick={handleSubmit}
+              disabled={updatePost.isPending || !isFormValid}
             >
-              Increment
-            </button>
-            <button
-              className="btn btn-xs lg:btn-md btn-outline"
-              onClick={() => {
-                const value = window.prompt(
-                  'Set value to:',
-                  count.toString() ?? '0'
-                );
-                if (
-                  !value ||
-                  parseInt(value) === count ||
-                  isNaN(parseInt(value))
-                ) {
-                  return;
-                }
-                return setMutation.mutateAsync(parseInt(value));
-              }}
-              disabled={setMutation.isPending}
-            >
-              Set
-            </button>
-            <button
-              className="btn btn-xs lg:btn-md btn-outline"
-              onClick={() => decrementMutation.mutateAsync()}
-              disabled={decrementMutation.isPending}
-            >
-              Decrement
+              Update Reddit Post {updatePost.isPending && '...'}
             </button>
           </div>
-          <div className="text-center space-y-4">
+          <div className="text-left space-y-4">
             <p>
               <ExplorerLink
                 path={`account/${account}`}
                 label={ellipsify(account.toString())}
               />
+              
             </p>
             <button
               className="btn btn-xs btn-secondary btn-outline"
@@ -141,9 +190,12 @@ function RedditCard({ account }: { account: PublicKey }) {
                 ) {
                   return;
                 }
-                return closeMutation.mutateAsync();
+                const topic = accountQuery.data?.topic;
+                if (topic) {
+                  return deletePost.mutateAsync(topic);
+                }
               }}
-              disabled={closeMutation.isPending}
+              disabled={deletePost.isPending}
             >
               Close
             </button>

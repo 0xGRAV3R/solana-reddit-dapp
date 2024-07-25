@@ -5,108 +5,200 @@
  * IDL can be found at `target/idl/reddit.json`.
  */
 export type Reddit = {
-  address: 'DDJ6SXRJSnWamYPFuHaMaUDhUEfN5D2ztiFCxLKcbb9k';
-  metadata: {
-    name: 'reddit';
-    version: '0.1.0';
-    spec: '0.1.0';
-    description: 'Created with Anchor';
-  };
-  instructions: [
+  "address": "DDJ6SXRJSnWamYPFuHaMaUDhUEfN5D2ztiFCxLKcbb9k",
+  "metadata": {
+    "name": "reddit",
+    "version": "0.1.0",
+    "spec": "0.1.0",
+    "description": "Created with Anchor"
+  },
+  "instructions": [
     {
-      name: 'close';
-      discriminator: [98, 165, 201, 177, 108, 65, 206, 96];
-      accounts: [
+      "name": "createRedditPost",
+      "discriminator": [
+        236,
+        157,
+        150,
+        194,
+        229,
+        131,
+        185,
+        124
+      ],
+      "accounts": [
         {
-          name: 'payer';
-          writable: true;
-          signer: true;
-        },
-        {
-          name: 'reddit';
-          writable: true;
-        }
-      ];
-      args: [];
-    },
-    {
-      name: 'decrement';
-      discriminator: [106, 227, 168, 59, 248, 27, 150, 101];
-      accounts: [
-        {
-          name: 'reddit';
-          writable: true;
-        }
-      ];
-      args: [];
-    },
-    {
-      name: 'increment';
-      discriminator: [11, 18, 104, 9, 104, 174, 59, 33];
-      accounts: [
-        {
-          name: 'reddit';
-          writable: true;
-        }
-      ];
-      args: [];
-    },
-    {
-      name: 'initialize';
-      discriminator: [175, 175, 109, 31, 13, 152, 155, 237];
-      accounts: [
-        {
-          name: 'payer';
-          writable: true;
-          signer: true;
-        },
-        {
-          name: 'reddit';
-          writable: true;
-          signer: true;
-        },
-        {
-          name: 'systemProgram';
-          address: '11111111111111111111111111111111';
-        }
-      ];
-      args: [];
-    },
-    {
-      name: 'set';
-      discriminator: [198, 51, 53, 241, 116, 29, 126, 194];
-      accounts: [
-        {
-          name: 'reddit';
-          writable: true;
-        }
-      ];
-      args: [
-        {
-          name: 'value';
-          type: 'u8';
-        }
-      ];
-    }
-  ];
-  accounts: [
-    {
-      name: 'reddit';
-      discriminator: [135, 64, 223, 168, 233, 143, 162, 215];
-    }
-  ];
-  types: [
-    {
-      name: 'reddit';
-      type: {
-        kind: 'struct';
-        fields: [
-          {
-            name: 'count';
-            type: 'u8';
+          "name": "redditPost",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "arg",
+                "path": "topic"
+              },
+              {
+                "kind": "account",
+                "path": "author"
+              }
+            ]
           }
-        ];
-      };
+        },
+        {
+          "name": "author",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "topic",
+          "type": "string"
+        },
+        {
+          "name": "content",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "deleteRedditPost",
+      "discriminator": [
+        39,
+        129,
+        26,
+        213,
+        115,
+        83,
+        164,
+        95
+      ],
+      "accounts": [
+        {
+          "name": "redditPost",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "arg",
+                "path": "topic"
+              },
+              {
+                "kind": "account",
+                "path": "author"
+              }
+            ]
+          }
+        },
+        {
+          "name": "author",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "title",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "name": "updateRedditPost",
+      "discriminator": [
+        80,
+        111,
+        70,
+        84,
+        247,
+        217,
+        19,
+        62
+      ],
+      "accounts": [
+        {
+          "name": "redditPost",
+          "writable": true,
+          "pda": {
+            "seeds": [
+              {
+                "kind": "arg",
+                "path": "topic"
+              },
+              {
+                "kind": "account",
+                "path": "author"
+              }
+            ]
+          }
+        },
+        {
+          "name": "author",
+          "writable": true,
+          "signer": true
+        },
+        {
+          "name": "systemProgram",
+          "address": "11111111111111111111111111111111"
+        }
+      ],
+      "args": [
+        {
+          "name": "topic",
+          "type": "string"
+        },
+        {
+          "name": "newContent",
+          "type": "string"
+        }
+      ]
     }
-  ];
+  ],
+  "accounts": [
+    {
+      "name": "redditPostState",
+      "discriminator": [
+        129,
+        138,
+        128,
+        198,
+        233,
+        207,
+        104,
+        156
+      ]
+    }
+  ],
+  "types": [
+    {
+      "name": "redditPostState",
+      "type": {
+        "kind": "struct",
+        "fields": [
+          {
+            "name": "author",
+            "type": "pubkey"
+          },
+          {
+            "name": "topic",
+            "type": "string"
+          },
+          {
+            "name": "content",
+            "type": "string"
+          },
+          {
+            "name": "timestamp",
+            "type": "i64"
+          }
+        ]
+      }
+    }
+  ]
 };
